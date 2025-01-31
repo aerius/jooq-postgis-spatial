@@ -8,8 +8,11 @@ import net.dmitry.jooq.postgis.spatial.jts.mgeom.MCoordinate
 import net.dmitry.jooq.postgis.spatial.jts.mgeom.MGeometry
 import net.dmitry.jooq.postgis.spatial.jts.mgeom.MGeometryFactory
 import net.dmitry.jooq.postgis.spatial.jts.mgeom.MLineString
+import net.postgis.jdbc.PGbox2d
+import net.postgis.jdbc.PGboxbase
 import org.jooq.Converter
-import org.postgis.*
+import net.postgis.jdbc.PGgeometry
+import net.postgis.jdbc.geometry.*
 
 /**
  * @author Dmitry Zhuravlev
@@ -19,7 +22,7 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
 
     private val postgisGeometryConverter = PostgisGeometryConverter()
 
-    override fun from(obj: Any?): Geometry? = toJTS(postgisGeometryConverter.from(obj))
+    override fun from(obj: Any): Geometry = toJTS(postgisGeometryConverter.from(obj))
 
 
     override fun to(geom: Geometry?): Any? = if (geom != null) toNative(geom) else null
@@ -33,30 +36,30 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
     }
 
 
-    fun toJTS(obj: Any?): Geometry? {
-        var objNotNull = obj ?: return null
+    fun toJTS(obj: Any?): Geometry {
+        var objNotNull = obj ?: throw IllegalArgumentException("Can't convert null object to JTS Geometry")
         // in some cases, Postgis returns not PGgeometry objects
         // but org.postgis.Geometry instances.
         // This has been observed when retrieving GeometryCollections
         // as the result of an SQL-operation such as Union.
-        if (objNotNull is org.postgis.Geometry) {
+        if (objNotNull is net.postgis.jdbc.geometry.Geometry) {
             objNotNull = PGgeometry(objNotNull)
         }
 
         if (objNotNull is PGgeometry) {
-            var out: Geometry?
+            val out: Geometry?
             when (objNotNull.geoType) {
-                org.postgis.Geometry.POINT -> out = convertPoint(objNotNull.geometry as Point)
-                org.postgis.Geometry.LINESTRING -> out = convertLineString(
+                net.postgis.jdbc.geometry.Geometry.POINT -> out = convertPoint(objNotNull.geometry as Point)
+                net.postgis.jdbc.geometry.Geometry.LINESTRING -> out = convertLineString(
                     objNotNull.geometry as LineString)
-                org.postgis.Geometry.POLYGON -> out = convertPolygon(objNotNull.geometry as Polygon)
-                org.postgis.Geometry.MULTILINESTRING -> out = convertMultiLineString(
+                net.postgis.jdbc.geometry.Geometry.POLYGON -> out = convertPolygon(objNotNull.geometry as Polygon)
+                net.postgis.jdbc.geometry.Geometry.MULTILINESTRING -> out = convertMultiLineString(
                     objNotNull.geometry as MultiLineString)
-                org.postgis.Geometry.MULTIPOINT -> out = convertMultiPoint(
+                net.postgis.jdbc.geometry.Geometry.MULTIPOINT -> out = convertMultiPoint(
                     objNotNull.geometry as MultiPoint)
-                org.postgis.Geometry.MULTIPOLYGON -> out = convertMultiPolygon(
+                net.postgis.jdbc.geometry.Geometry.MULTIPOLYGON -> out = convertMultiPolygon(
                     objNotNull.geometry as MultiPolygon)
-                org.postgis.Geometry.GEOMETRYCOLLECTION -> out = convertGeometryCollection(
+                net.postgis.jdbc.geometry.Geometry.GEOMETRYCOLLECTION -> out = convertGeometryCollection(
                     objNotNull.geometry as GeometryCollection)
                 else -> throw RuntimeException("Unknown type of PGgeometry")
             }
@@ -154,7 +157,7 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
             polygon: Polygon): Geometry {
         val shell = getGeometryFactory().createLinearRing(
                 toJTSCoordinates(polygon.getRing(0).points))
-        var out: org.locationtech.jts.geom.Polygon?
+        val out: org.locationtech.jts.geom.Polygon?
         if (polygon.numRings() > 1) {
             val rings = arrayOfNulls<org.locationtech.jts.geom.LinearRing>(polygon.numRings() - 1)
             for (r in 1..polygon.numRings() - 1) {
@@ -218,13 +221,11 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
 
      * @param jtsGeom    JTS Geometry to convert
      * *
-     * @param connection the current database connection
-     * *
      * @return native database geometry object corresponding to jtsGeom.
      */
     protected fun toNative(jtsGeom: Geometry): PGgeometry {
         val jtsGeomNotNull = forceEmptyToGeometryCollection(jtsGeom)
-        val geom: org.postgis.Geometry? = when (jtsGeomNotNull) {
+        val geom: net.postgis.jdbc.geometry.Geometry? = when (jtsGeomNotNull) {
             is org.locationtech.jts.geom.Point -> {
                 convertJTSPoint(jtsGeomNotNull)
             }
@@ -377,7 +378,7 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
     private fun convertJTSGeometryCollection(
             collection: org.locationtech.jts.geom.GeometryCollection): GeometryCollection {
         var currentGeom: Geometry
-        val pgCollections = arrayOfNulls<org.postgis.Geometry>(collection.numGeometries)
+        val pgCollections = arrayOfNulls<net.postgis.jdbc.geometry.Geometry>(collection.numGeometries)
         for (i in pgCollections.indices) {
             currentGeom = collection.getGeometryN(i)
             currentGeom = forceEmptyToGeometryCollection(currentGeom)

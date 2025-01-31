@@ -3,7 +3,7 @@ package net.dmitry.jooq.postgis.spatial.binding
 import net.dmitry.jooq.postgis.spatial.converter.PostgisGeometryConverter
 import org.jooq.*
 import org.jooq.impl.DSL
-import org.postgis.Geometry
+import net.postgis.jdbc.geometry.Geometry
 
 /**
  * @author Dmitry Zhuravlev
@@ -11,20 +11,20 @@ import org.postgis.Geometry
  */
 class PostgisGeometryBinding : Binding<Any, Geometry> {
 
-    private val geometryConverter = PostgisGeometryConverter();
+    private val geometryConverter = PostgisGeometryConverter()
 
-    override fun converter(): Converter<Any, Geometry>? = geometryConverter
+    override fun converter(): Converter<Any, Geometry> = geometryConverter
 
     override fun set(ctx: BindingSetStatementContext<Geometry>?) {
         ctx?.statement()?.setObject(ctx.index(), ctx.convert(converter()).value())
     }
 
     override fun get(ctx: BindingGetStatementContext<Geometry>?) {
-        ctx?.convert(converter())?.value(ctx.statement().getObject(ctx.index()));
+        ctx?.convert(converter())?.value(ctx.statement().getObject(ctx.index()))
     }
 
     override fun get(ctx: BindingGetResultSetContext<Geometry>?) {
-        ctx?.convert(converter())?.value(ctx.resultSet().getObject(ctx.index()));
+        ctx?.convert(converter())?.value(ctx.resultSet().getObject(ctx.index()))
     }
 
     override fun sql(ctx: BindingSQLContext<Geometry>?) {

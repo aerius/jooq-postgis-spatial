@@ -1,8 +1,8 @@
 package net.dmitry.jooq.postgis.spatial.converter
 
 import org.locationtech.jts.geom.Coordinate
-import org.locationtech.jts.geom.Geometry
 import net.dmitry.jooq.postgis.spatial.jts.JTS
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.postgresql.util.PGobject
@@ -22,7 +22,9 @@ class JTSGeometryConverterTest {
             value = "0101000020E6100000304CA60A460D4140BE9F1A2FDD0C4E40"
         }
         val converted = jtsGeometryConverter.from(pGobject)
-        assertTrue(converted is Geometry)
+        assertEquals("Point", converted.geometryType)
+        assertEquals(34.1037, converted.coordinate.x, 0.0001)
+        assertEquals(60.1005, converted.coordinate.y, 0.0001)
     }
 
     @Test
@@ -31,7 +33,7 @@ class JTSGeometryConverterTest {
         val y = 60.1005
         val jtsPoint = JTS.getDefaultGeomFactory().createPoint(Coordinate(x, y))
         val convertedBack = jtsGeometryConverter.to(jtsPoint)
-        assertTrue(convertedBack is org.postgis.PGgeometry
+        assertTrue(convertedBack is net.postgis.jdbc.PGgeometry
                 && convertedBack.geometry.getPoint(0).x == x && convertedBack.geometry.getPoint(0).y == y)
     }
 }

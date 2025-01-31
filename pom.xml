@@ -8,6 +8,17 @@
     <artifactId>jooq-postgis-spatial</artifactId>
     <version>1.0-SNAPSHOT</version>
 
+    <properties>
+        <compileSource>17</compileSource>
+        <compileTarget>17</compileTarget>
+        <kotlin.version>2.1.10</kotlin.version>
+        <postgresql.version>42.7.5</postgresql.version>
+        <jooq.version>3.17.12</jooq.version>
+        <jts.version>1.20.0</jts.version>
+        <postgis-jdbc.version>2023.1.0</postgis-jdbc.version>
+        <junit.version>4.13.2</junit.version>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
@@ -49,7 +60,7 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.13.1</version>
+            <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -60,7 +71,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <source>${compileSource}</source>
-                    <target>${compileSource}</target>
+                    <target>${compileTarget}</target>
                 </configuration>
             </plugin>
             <plugin>
@@ -96,15 +107,4 @@
             </plugin>
         </plugins>
     </build>
-
-    <properties>
-        <compileSource>1.8</compileSource>
-        <kotlin.version>1.5.21</kotlin.version>
-        <postgresql.version>9.4-1201-jdbc4</postgresql.version>
-        <jooq.version>3.7.3</jooq.version>
-        <jts.version>1.18.1</jts.version>
-        <postgis-jdbc.version>2.2.0</postgis-jdbc.version>
-    </properties>
-
-
 </project>

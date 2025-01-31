@@ -1,9 +1,9 @@
 package net.dmitry.jooq.postgis.spatial.converter
 
-import org.jooq.Converter
-import org.postgis.Geometry
-import org.postgis.PGgeometry
+import net.postgis.jdbc.geometry.Geometry
+import net.postgis.jdbc.geometry.GeometryBuilder
 import org.postgresql.util.PGobject
+import org.jooq.Converter
 
 /**
  * @author Dmitry Zhuravlev
@@ -11,22 +11,15 @@ import org.postgresql.util.PGobject
  */
 class PostgisGeometryConverter : Converter<Any, Geometry> {
 
-    override fun from(obj: Any?): Geometry? =
-            if (obj == null) {
-                null
-            } else PGgeometry.geomFromString(obj.toString())
+    override fun from(obj: Any): Geometry = GeometryBuilder.geomFromString(obj.toString())
 
 
-    override fun to(geom: Geometry?): Any? =
-            if (geom == null) {
-                null
-            } else
-                PGobject().apply {
+    override fun to(geom: Geometry): Any = PGobject().apply {
                     type = geom.typeString
                     value = geom.value
                 }
 
-    override fun toType(): Class<Geometry>? = Geometry::class.java
+    override fun toType(): Class<Geometry> = Geometry::class.java
 
-    override fun fromType(): Class<Any>? = Any::class.java
+    override fun fromType(): Class<Any> = Any::class.java
 }
