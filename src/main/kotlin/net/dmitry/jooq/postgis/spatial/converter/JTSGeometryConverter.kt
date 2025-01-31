@@ -1,18 +1,18 @@
 package net.dmitry.jooq.postgis.spatial.converter
 
-import org.locationtech.jts.geom.Coordinate
-import org.locationtech.jts.geom.Geometry
-import org.locationtech.jts.geom.GeometryFactory
-import net.dmitry.jooq.postgis.spatial.jts.JTS
-import net.dmitry.jooq.postgis.spatial.jts.mgeom.MCoordinate
-import net.dmitry.jooq.postgis.spatial.jts.mgeom.MGeometry
-import net.dmitry.jooq.postgis.spatial.jts.mgeom.MGeometryFactory
-import net.dmitry.jooq.postgis.spatial.jts.mgeom.MLineString
 import net.postgis.jdbc.PGbox2d
 import net.postgis.jdbc.PGboxbase
 import org.jooq.Converter
 import net.postgis.jdbc.PGgeometry
-import net.postgis.jdbc.geometry.*
+import net.postgis.jdbc.geometry.GeometryCollection
+import net.postgis.jdbc.geometry.LineString
+import net.postgis.jdbc.geometry.LinearRing
+import net.postgis.jdbc.geometry.MultiLineString
+import net.postgis.jdbc.geometry.MultiPoint
+import net.postgis.jdbc.geometry.MultiPolygon
+import net.postgis.jdbc.geometry.Point
+import net.postgis.jdbc.geometry.Polygon
+import org.locationtech.jts.geom.*
 
 /**
  * @author Dmitry Zhuravlev
@@ -24,19 +24,18 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
 
     override fun from(obj: Any): Geometry = toJTS(postgisGeometryConverter.from(obj))
 
-
     override fun to(geom: Geometry?): Any? = if (geom != null) toNative(geom) else null
 
     override fun toType(): Class<Geometry> = Geometry::class.java
 
     override fun fromType(): Class<Any> = Any::class.java
 
-    protected fun getGeometryFactory(): MGeometryFactory {
-        return JTS.getDefaultGeomFactory()
+    protected fun getGeometryFactory(): GeometryFactory {
+        return GeometryFactory()
     }
 
 
-    fun toJTS(obj: Any?): Geometry {
+    private fun toJTS(obj: Any?): Geometry {
         var objNotNull = obj ?: throw IllegalArgumentException("Can't convert null object to JTS Geometry")
         // in some cases, Postgis returns not PGgeometry objects
         // but org.postgis.Geometry instances.
@@ -135,13 +134,12 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
             mlstr: MultiLineString): Geometry {
         val out: org.locationtech.jts.geom.MultiLineString
         if (mlstr.haveMeasure) {
-            val lstrs = arrayOfNulls<MLineString>(mlstr.numLines())
+            val lstrs = arrayOfNulls<org.locationtech.jts.geom.LineString>(mlstr.numLines())
             for (i in 0..mlstr.numLines() - 1) {
-                val coordinates = toJTSCoordinates(
-                        mlstr.getLine(i).points)
-                lstrs[i] = getGeometryFactory().createMLineString(coordinates)
+                val coordinates = toJTSCoordinates(mlstr.getLine(i).points)
+                lstrs[i] = getGeometryFactory().createLineString(coordinates)
             }
-            out = getGeometryFactory().createMultiMLineString(lstrs)
+            out = getGeometryFactory().createMultiLineString(lstrs)
         } else {
             val lstrs = arrayOfNulls<org.locationtech.jts.geom.LineString>(mlstr.numLines())
             for (i in 0..mlstr.numLines() - 1) {
@@ -180,37 +178,32 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
     private fun convertLineString(
             lstr: LineString): org.locationtech.jts.geom.LineString {
         val out = if (lstr.haveMeasure)
-            getGeometryFactory().createMLineString(toJTSCoordinates(lstr.points))
+            getGeometryFactory().createLineString(toJTSCoordinates(lstr.points))
         else
             getGeometryFactory().createLineString(
                     toJTSCoordinates(lstr.points))
         return out
     }
 
-    private fun toJTSCoordinates(points: Array<Point>): Array<MCoordinate?> {
-        val coordinates = arrayOfNulls<MCoordinate>(points.size)
+    private fun toJTSCoordinates(points: Array<Point>): Array<Coordinate?> {
+        val coordinates = arrayOfNulls<Coordinate>(points.size)
         for (i in points.indices) {
             coordinates[i] = this.toJTSCoordinate(points[i])
         }
         return coordinates
     }
 
-    private fun toJTSCoordinate(pt: Point): MCoordinate {
-        val mc: MCoordinate
-        if (pt.dimension == 2) {
-            mc = if (pt.haveMeasure)
-                MCoordinate.create2dWithMeasure(
-                        pt.getX(), pt.getY(), pt.getM())
+    private fun toJTSCoordinate(pt: Point): Coordinate {
+        val mc: Coordinate = if (pt.dimension == 2) {
+            if (pt.haveMeasure)
+                CoordinateXYM(pt.getX(), pt.getY(), pt.getM())
             else
-                MCoordinate.create2d(
-                        pt.getX(), pt.getY())
+                Coordinate(pt.getX(), pt.getY())
         } else {
-            mc = if (pt.haveMeasure)
-                MCoordinate.create3dWithMeasure(
-                        pt.getX(), pt.getY(), pt.getZ(), pt.getM())
+            if (pt.haveMeasure)
+                CoordinateXYZM(pt.getX(), pt.getY(), pt.getZ(), pt.getM())
             else
-                MCoordinate.create3d(
-                        pt.getX(), pt.getY(), pt.getZ())
+                Coordinate(pt.getX(), pt.getY(), pt.getZ())
         }
         return mc
     }
@@ -270,7 +263,7 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
         if (forced.isEmpty) {
             var factory: GeometryFactory? = jtsGeom.factory
             if (factory == null) {
-                factory = JTS.getDefaultGeomFactory()
+                factory = GeometryFactory()
             }
             forced = factory?.createGeometryCollection(null)!!
             forced.setSRID(jtsGeom.srid)
@@ -319,21 +312,14 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
 
     private fun convertJTSLineStringToLinearRing(
             lineString: org.locationtech.jts.geom.LineString): LinearRing {
-        val lr = LinearRing(
-                toPoints(
-                        lineString.coordinates))
+        val lr = LinearRing(toPoints(lineString.coordinates))
         lr.setSrid(lineString.srid)
         return lr
     }
 
-    private fun convertJTSLineString(
-            string: org.locationtech.jts.geom.LineString): LineString {
-        val ls = LineString(
-                toPoints(
-                        string.coordinates))
-        if (string is MGeometry) {
-            ls.haveMeasure = true
-        }
+    private fun convertJTSLineString(string: org.locationtech.jts.geom.LineString): LineString {
+        val ls = LineString(toPoints(string.coordinates))
+        ls.haveMeasure = true
         ls.setSrid(string.srid)
         return ls
     }
@@ -342,15 +328,10 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
             string: org.locationtech.jts.geom.MultiLineString): MultiLineString {
         val lines = arrayOfNulls<LineString>(string.numGeometries)
         for (i in 0..string.numGeometries - 1) {
-            lines[i] = LineString(
-                    toPoints(
-                            string.getGeometryN(
-                                    i).coordinates))
+            lines[i] = LineString(toPoints(string.getGeometryN(i).coordinates))
         }
         val mls = MultiLineString(lines)
-        if (string is MGeometry) {
-            mls.haveMeasure = true
-        }
+        mls.haveMeasure = true
         mls.setSrid(string.srid)
         return mls
     }
@@ -368,7 +349,7 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
             pgPoint.dimension = 3
         }
         pgPoint.haveMeasure = false
-        if (coordinate is MCoordinate && !java.lang.Double.isNaN(coordinate.m)) {
+        if (coordinate is Coordinate && !java.lang.Double.isNaN(coordinate.m)) {
             pgPoint.m = coordinate.m
             pgPoint.haveMeasure = true
         }
@@ -382,22 +363,31 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
         for (i in pgCollections.indices) {
             currentGeom = collection.getGeometryN(i)
             currentGeom = forceEmptyToGeometryCollection(currentGeom)
-            if (currentGeom.javaClass == org.locationtech.jts.geom.LineString::class.java) {
-                pgCollections[i] = convertJTSLineString(currentGeom as org.locationtech.jts.geom.LineString)
-            } else if (currentGeom.javaClass == org.locationtech.jts.geom.LinearRing::class.java) {
-                pgCollections[i] = convertJTSLineStringToLinearRing(currentGeom as org.locationtech.jts.geom.LinearRing)
-            } else if (currentGeom.javaClass == org.locationtech.jts.geom.MultiLineString::class.java) {
-                pgCollections[i] = convertJTSMultiLineString(currentGeom as org.locationtech.jts.geom.MultiLineString)
-            } else if (currentGeom.javaClass == org.locationtech.jts.geom.MultiPoint::class.java) {
-                pgCollections[i] = convertJTSMultiPoint(currentGeom as org.locationtech.jts.geom.MultiPoint)
-            } else if (currentGeom.javaClass == org.locationtech.jts.geom.MultiPolygon::class.java) {
-                pgCollections[i] = convertJTSMultiPolygon(currentGeom as org.locationtech.jts.geom.MultiPolygon)
-            } else if (currentGeom.javaClass == org.locationtech.jts.geom.Point::class.java) {
-                pgCollections[i] = convertJTSPoint(currentGeom as org.locationtech.jts.geom.Point)
-            } else if (currentGeom.javaClass == org.locationtech.jts.geom.Polygon::class.java) {
-                pgCollections[i] = convertJTSPolygon(currentGeom as org.locationtech.jts.geom.Polygon)
-            } else if (currentGeom.javaClass == org.locationtech.jts.geom.GeometryCollection::class.java) {
-                pgCollections[i] = convertJTSGeometryCollection(currentGeom as org.locationtech.jts.geom.GeometryCollection)
+            when (currentGeom.javaClass) {
+                org.locationtech.jts.geom.LineString::class.java -> {
+                    pgCollections[i] = convertJTSLineString(currentGeom as org.locationtech.jts.geom.LineString)
+                }
+                org.locationtech.jts.geom.LinearRing::class.java -> {
+                    pgCollections[i] = convertJTSLineStringToLinearRing(currentGeom as org.locationtech.jts.geom.LinearRing)
+                }
+                org.locationtech.jts.geom.MultiLineString::class.java -> {
+                    pgCollections[i] = convertJTSMultiLineString(currentGeom as org.locationtech.jts.geom.MultiLineString)
+                }
+                org.locationtech.jts.geom.MultiPoint::class.java -> {
+                    pgCollections[i] = convertJTSMultiPoint(currentGeom as org.locationtech.jts.geom.MultiPoint)
+                }
+                org.locationtech.jts.geom.MultiPolygon::class.java -> {
+                    pgCollections[i] = convertJTSMultiPolygon(currentGeom as org.locationtech.jts.geom.MultiPolygon)
+                }
+                org.locationtech.jts.geom.Point::class.java -> {
+                    pgCollections[i] = convertJTSPoint(currentGeom as org.locationtech.jts.geom.Point)
+                }
+                org.locationtech.jts.geom.Polygon::class.java -> {
+                    pgCollections[i] = convertJTSPolygon(currentGeom as org.locationtech.jts.geom.Polygon)
+                }
+                org.locationtech.jts.geom.GeometryCollection::class.java -> {
+                    pgCollections[i] = convertJTSGeometryCollection(currentGeom as org.locationtech.jts.geom.GeometryCollection)
+                }
             }
         }
         val gc = GeometryCollection(pgCollections)
@@ -416,7 +406,7 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
             } else {
                 pt = Point(c.x, c.y, c.z)
             }
-            if (c is MCoordinate) {
+            if (c is Coordinate) {
                 val mc = c
                 if (!java.lang.Double.isNaN(mc.m)) {
                     pt.setM(mc.m)
