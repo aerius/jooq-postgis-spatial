@@ -265,7 +265,7 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
             if (factory == null) {
                 factory = GeometryFactory()
             }
-            forced = factory?.createGeometryCollection(null)!!
+            forced = factory.createGeometryCollection(null)!!
             forced.setSRID(jtsGeom.srid)
         }
         return forced
@@ -406,11 +406,9 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
             } else {
                 pt = Point(c.x, c.y, c.z)
             }
-            if (c is Coordinate) {
-                val mc = c
-                if (!java.lang.Double.isNaN(mc.m)) {
-                    pt.setM(mc.m)
-                }
+            val mc = c
+            if (!java.lang.Double.isNaN(mc.m)) {
+                pt.setM(mc.m)
             }
             points[i] = pt
         }
