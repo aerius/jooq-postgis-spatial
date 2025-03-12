@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.locationtech.jts.geom.CoordinateXYM
+import org.locationtech.jts.geom.Geometry
 import org.locationtech.jts.geom.GeometryFactory
 import org.postgresql.util.PGobject
 
@@ -23,9 +24,12 @@ class JTSGeometryConverterTest {
             value = "0101000020E6100000304CA60A460D4140BE9F1A2FDD0C4E40"
         }
         val converted = jtsGeometryConverter.from(pGobject)
-        assertEquals("Point", converted.geometryType)
-        assertEquals(34.1037, converted.coordinate.x, 0.0001)
-        assertEquals(60.1005, converted.coordinate.y, 0.0001)
+        assertTrue(converted is Geometry)
+        assertEquals("Point", converted?.geometryType)
+        if (converted != null) {
+            assertEquals(34.1037, converted.coordinate.x , 0.0001)
+            assertEquals(60.1005, converted.coordinate.y, 0.0001)
+        }
     }
 
     @Test
@@ -35,9 +39,12 @@ class JTSGeometryConverterTest {
             value = "0101000020E6100000304CA60A460D4140BE9F1A2FDD0C4E40"
         }
         val converted = jtsGeometryConverter.from(pGobject)
-        assertEquals("Point", converted.geometryType)
-        assertEquals(34.1037, converted.coordinate.x, 0.0001)
-        assertEquals(60.1005, converted.coordinate.y, 0.0001)
+        assertTrue(converted is Geometry)
+        assertEquals("Point", converted?.geometryType)
+        if (converted != null) {
+            assertEquals(34.1037, converted.coordinate.x, 0.0001)
+            assertEquals(60.1005, converted.coordinate.y, 0.0001)
+        }
     }
 
     @Test

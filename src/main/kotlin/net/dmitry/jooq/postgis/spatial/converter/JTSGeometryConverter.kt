@@ -22,7 +22,7 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
 
     private val postgisGeometryConverter = PostgisGeometryConverter()
 
-    override fun from(obj: Any): Geometry = toJTS(postgisGeometryConverter.from(obj))
+    override fun from(obj: Any?): Geometry? = if (obj != null) toJTS(postgisGeometryConverter.from(obj)) else null
 
     override fun to(geom: Geometry?): Any? = if (geom != null) toNative(geom) else null
 
@@ -30,8 +30,8 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
 
     override fun fromType(): Class<Any> = Any::class.java
 
-    protected fun getGeometryFactory(): GeometryFactory {
-        return GeometryFactory()
+    protected fun getGeometryFactory(srid: Int?): GeometryFactory {
+        return if (srid != null) GeometryFactory(PrecisionModel(), srid) else GeometryFactory()
     }
 
 
@@ -91,8 +91,8 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
             ringCoords[3] = Coordinate(ll.x, ur.y, ur.z)
             ringCoords[4] = Coordinate(ll.x, ll.y, ll.z)
         }
-        val shell = getGeometryFactory().createLinearRing(ringCoords)
-        return getGeometryFactory().createPolygon(shell, null)
+        val shell = getGeometryFactory(ll.srid).createLinearRing(ringCoords)
+        return getGeometryFactory(ll.srid).createPolygon(shell, null)
     }
 
     private fun convertGeometryCollection(collection: GeometryCollection): Geometry {
@@ -103,7 +103,7 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
             //TODO  - refactor this so the following line is not necessary
             jtsGeometries[i]?.srid = 0 // convert2JTS sets SRIDs, but constituent geometries in a collection must have srid  == 0
         }
-        val jtsGCollection = getGeometryFactory().createGeometryCollection(jtsGeometries)
+        val jtsGCollection = getGeometryFactory(collection.srid).createGeometryCollection(jtsGeometries)
         return jtsGCollection
     }
 
@@ -115,7 +115,7 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
             polygons[i] = convertPolygon(pgPolygon) as org.locationtech.jts.geom.Polygon
         }
 
-        val out = getGeometryFactory().createMultiPolygon(polygons)
+        val out = getGeometryFactory(pgMultiPolygon.srid).createMultiPolygon(polygons)
         return out
     }
 
@@ -125,7 +125,7 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
         for (i in points.indices) {
             points[i] = convertPoint(pgMultiPoint.getPoint(i))
         }
-        val out = getGeometryFactory().createMultiPoint(points)
+        val out = getGeometryFactory(pgMultiPoint.srid).createMultiPoint(points)
         out.srid = pgMultiPoint.srid
         return out
     }
@@ -137,40 +137,40 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
             val lstrs = arrayOfNulls<org.locationtech.jts.geom.LineString>(mlstr.numLines())
             for (i in 0..mlstr.numLines() - 1) {
                 val coordinates = toJTSCoordinates(mlstr.getLine(i).points)
-                lstrs[i] = getGeometryFactory().createLineString(coordinates)
+                lstrs[i] = getGeometryFactory(mlstr.srid).createLineString(coordinates)
             }
-            out = getGeometryFactory().createMultiLineString(lstrs)
+            out = getGeometryFactory(mlstr.srid).createMultiLineString(lstrs)
         } else {
             val lstrs = arrayOfNulls<org.locationtech.jts.geom.LineString>(mlstr.numLines())
             for (i in 0..mlstr.numLines() - 1) {
-                lstrs[i] = getGeometryFactory().createLineString(
+                lstrs[i] = getGeometryFactory(mlstr.srid).createLineString(
                         toJTSCoordinates(mlstr.getLine(i).points))
             }
-            out = getGeometryFactory().createMultiLineString(lstrs)
+            out = getGeometryFactory(mlstr.srid).createMultiLineString(lstrs)
         }
         return out
     }
 
     private fun convertPolygon(
             polygon: Polygon): Geometry {
-        val shell = getGeometryFactory().createLinearRing(
+        val shell = getGeometryFactory(polygon.srid).createLinearRing(
                 toJTSCoordinates(polygon.getRing(0).points))
         val out: org.locationtech.jts.geom.Polygon?
         if (polygon.numRings() > 1) {
             val rings = arrayOfNulls<org.locationtech.jts.geom.LinearRing>(polygon.numRings() - 1)
             for (r in 1..polygon.numRings() - 1) {
-                rings[r - 1] = getGeometryFactory().createLinearRing(
+                rings[r - 1] = getGeometryFactory(polygon.srid).createLinearRing(
                         toJTSCoordinates(polygon.getRing(r).points))
             }
-            out = getGeometryFactory().createPolygon(shell, rings)
+            out = getGeometryFactory(polygon.srid).createPolygon(shell, rings)
         } else {
-            out = getGeometryFactory().createPolygon(shell, null)
+            out = getGeometryFactory(polygon.srid).createPolygon(shell, null)
         }
         return out
     }
 
     private fun convertPoint(pnt: Point): org.locationtech.jts.geom.Point {
-        val g = getGeometryFactory().createPoint(
+        val g = getGeometryFactory(pnt.srid).createPoint(
                 this.toJTSCoordinate(pnt))
         return g
     }
@@ -178,9 +178,9 @@ class JTSGeometryConverter : Converter<Any, Geometry> {
     private fun convertLineString(
             lstr: LineString): org.locationtech.jts.geom.LineString {
         val out = if (lstr.haveMeasure)
-            getGeometryFactory().createLineString(toJTSCoordinates(lstr.points))
+            getGeometryFactory(lstr.srid).createLineString(toJTSCoordinates(lstr.points))
         else
-            getGeometryFactory().createLineString(
+            getGeometryFactory(lstr.srid).createLineString(
                     toJTSCoordinates(lstr.points))
         return out
     }
