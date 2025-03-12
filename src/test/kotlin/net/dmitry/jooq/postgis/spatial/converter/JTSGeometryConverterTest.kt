@@ -25,11 +25,9 @@ class JTSGeometryConverterTest {
         }
         val converted = jtsGeometryConverter.from(pGobject)
         assertTrue(converted is Geometry)
-        assertEquals("Point", converted?.geometryType)
-        if (converted != null) {
-            assertEquals(34.1037, converted.coordinate.x , 0.0001)
-            assertEquals(60.1005, converted.coordinate.y, 0.0001)
-        }
+        assertEquals("Point", converted!!.geometryType)
+        assertEquals(34.1037, converted.coordinate.x , 0.0001)
+        assertEquals(60.1005, converted.coordinate.y, 0.0001)
     }
 
     @Test
@@ -40,11 +38,9 @@ class JTSGeometryConverterTest {
         }
         val converted = jtsGeometryConverter.from(pGobject)
         assertTrue(converted is Geometry)
-        assertEquals("Point", converted?.geometryType)
-        if (converted != null) {
-            assertEquals(34.1037, converted.coordinate.x, 0.0001)
-            assertEquals(60.1005, converted.coordinate.y, 0.0001)
-        }
+        assertEquals("Point", converted!!.geometryType)
+        assertEquals(34.1037, converted.coordinate.x, 0.0001)
+        assertEquals(60.1005, converted.coordinate.y, 0.0001)
     }
 
     @Test
