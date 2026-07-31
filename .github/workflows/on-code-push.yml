@@ -1,7 +1,10 @@
-name: push-event
+name: code-push
 
 on:
   push:
+    branches:
+      - 'main'
+      - '**_fixes'
 
 jobs:
   job:
@@ -13,7 +16,6 @@ jobs:
 
       - uses: ./aerius-github-actions/events/push-event-action
         with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
           NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
           # SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }} // left out for now
